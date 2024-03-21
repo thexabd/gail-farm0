@@ -32,7 +32,7 @@ class Critic(nn.Module):
         self.critic = nn.Sequential(nn.Linear(state_size, hidden_size), nn.Tanh(), nn.Linear(hidden_size, hidden_size), nn.Tanh(), nn.Linear(hidden_size, 1))
 
     def forward(self, state):
-        value = self.critic(state).squeeze(dim=1)
+        value = self.critic(state)
         return value
 
 

@@ -11,17 +11,20 @@ gym.logger.set_level(ERROR)  # Ignore warnings from Gym logger
 
 class Farm0Modded:
     def __init__(self):
-        self.env = Farm0()
+        env = Farm0()
         env.farmgym_to_gym_observations = farmgym_to_gym_observations_flattened
         env = wrapper(env)
 
+        self.env = env
+
     def reset(self):
         state = self.env.reset()
-        return torch.tensor(state, dtype=torch.float32).unsqueeze(dim=0)  # Add batch dimension to state
+        state = state[0]
+        return torch.tensor(state, dtype=torch.float32)  # Add batch dimension to state
 
     def step(self, action):
-        state, reward, terminal, _ = self.env.step(action[0].detach().numpy())  # Remove batch dimension from action
-        return torch.tensor(state, dtype=torch.float32).unsqueeze(dim=0), reward, terminal  # Add batch dimension to state
+        state, reward, terminal, info, _ = self.env.step(action.detach().item())
+        return torch.tensor(state, dtype=torch.float32), reward, terminal  # Add batch dimension to state
 
     def seed(self, seed):
         return self.env.seed(seed)
