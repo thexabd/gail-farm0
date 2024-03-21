@@ -1,6 +1,6 @@
 import argparse
 import torch
-from environments import CartPoleEnv
+from environments import Farm0Modded
 from evaluation import evaluate_agent
 from models import ActorCritic
 from train_GAIL import train
@@ -45,8 +45,8 @@ def get_args():
 if __name__ == "__main__":
     args = get_args()
     # Set up environment
-    env = CartPoleEnv()
-    env.seed(args.seed)
+    env = Farm0Modded()
+    #env.seed(args.seed)
     torch.manual_seed(args.seed)
     # Set up actor-critic model
     agent = ActorCritic(env.observation_space.shape[0], env.action_space.n, args.hidden_size)

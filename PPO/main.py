@@ -12,7 +12,7 @@ def main(args):
     if args.save:
         agent.save_weights()
     if args.eval:
-        agent.eval(10)
+        agent.eval(100)
     if args.collect:
         collect(args)
 

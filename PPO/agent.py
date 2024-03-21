@@ -34,8 +34,8 @@ class Agent(AgentConfig):
     def new_random_game(self):
         self.env.reset()
         action = self.env.action_space.sample()
-        screen, reward, terminal, info = self.env.step(action)
-        return screen, reward, action, terminal
+        obs, reward, terminal, info, _ = self.env.step(action)
+        return obs, reward, action, terminal
 
     def train(self):
         episode = 0
@@ -69,7 +69,7 @@ class Agent(AgentConfig):
                 action = torch.distributions.Categorical(prob_a).sample().item()
 
                 # Act
-                state, reward, terminal, _ = self.env.step(action)
+                state, reward, terminal, _, _ = self.env.step(action)
                 new_state = state
 
                 reward = -1 if terminal else reward
