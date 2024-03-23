@@ -3,12 +3,14 @@ from torch import autograd
 from torch.nn import functional as F
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader, Dataset
+import numpy as np
 
 
 # Flattens a list of dicts with torch Tensors
 def flatten_list_dicts(list_dicts):
-    return {k: torch.cat([d[k] for d in list_dicts], dim=0) for k in list_dicts[-1].keys()}
-
+    # Check if the function is dealing with scalar tensors and reshape them if necessary
+    return {k: torch.cat([d[k].reshape(1) if d[k].dim() == 0 else d[k] for d in list_dicts], dim=0) for k in list_dicts[-1].keys()}
+  
 
 # Indicate absorbing states
 def indicate_absorbing(states, actions, terminals, next_states=None):
@@ -29,8 +31,13 @@ def indicate_absorbing(states, actions, terminals, next_states=None):
 class TransitionDataset(Dataset):
     def __init__(self, transitions):
         super().__init__()
+        #actions = []
         transitions['states'] = torch.FloatTensor(transitions["states"])
-        transitions['actions'] = torch.LongTensor(transitions["actions"]).detach()
+        print(type(transitions["actions"][0]))
+        numpy_array = np.stack(transitions["actions"]).astype(np.int64)
+        transitions['actions'] = torch.from_numpy(numpy_array)
+        print(type(transitions['actions']))
+        #transitions['actions'] = torch.LongTensor(actions)
         transitions['rewards'] = torch.FloatTensor(transitions["rewards"])
         transitions['terminals'] = torch.Tensor(transitions["terminals"])
         self.states, self.actions, self.rewards, self.terminals = transitions['states'], transitions['actions'].detach(), transitions['rewards'], transitions['terminals']  # Detach actions

@@ -20,11 +20,11 @@ class Farm0Modded:
     def reset(self):
         state = self.env.reset()
         state = state[0]
-        return torch.tensor(state, dtype=torch.float32)  # Add batch dimension to state
+        return torch.tensor(state, dtype=torch.float32).unsqueeze(dim=0)  # Add batch dimension to state
 
     def step(self, action):
         state, reward, terminal, info, _ = self.env.step(action.detach().item())
-        return torch.tensor(state, dtype=torch.float32), reward, terminal  # Add batch dimension to state
+        return torch.tensor(state, dtype=torch.float32).unsqueeze(dim=0), reward, terminal  # Add batch dimension to state
 
     def seed(self, seed):
         return self.env.seed(seed)
