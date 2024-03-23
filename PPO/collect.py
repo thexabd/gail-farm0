@@ -27,10 +27,12 @@ def collect(args):
     while trajectories < args.n_traj:
         ep_reward = 0
         state, _ = env.reset()
-        reward, action = 0
+        reward = 0
+        action = 0
         terminal = False
 
         ep_memory = {'state': [], 'action': [], 'reward': [], 'terminal': []}
+        
         while True:
             #prob_a = agent.policy_network.pi(torch.FloatTensor(state).to(device))
             #action = torch.distributions.Categorical(prob_a).sample().item()
