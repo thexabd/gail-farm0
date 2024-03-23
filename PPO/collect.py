@@ -1,14 +1,22 @@
-from agent import Agent
+#from agent import Agent
 import torch
 import argparse
 import pickle
+from stable_baselines3 import PPO
+
+from farmgym_games.game_builder.utils_sb3 import farmgym_to_gym_observations_flattened, wrapper
+from farmgym_games.game_catalogue.farm0.farm import env as Farm0
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+env = Farm0()
+env.farmgym_to_gym_observations = farmgym_to_gym_observations_flattened
+env = wrapper(env)
 
 def collect(args):
-    agent = Agent()
-    agent.load_weights()
+    agent = PPO.load("Heuristic_Agent")
+    #agent.load_weights()
 
     # dict of arrays
     memory = {'states': [], 'actions': [], 'rewards': [], 'terminals': []}
@@ -18,12 +26,16 @@ def collect(args):
 
     while trajectories < args.n_traj:
         ep_reward = 0
-        state, reward, action, terminal = agent.new_random_game()
+        state, _ = env.reset()
+        reward, action = 0
+        terminal = False
+
         ep_memory = {'state': [], 'action': [], 'reward': [], 'terminal': []}
         while True:
-            prob_a = agent.policy_network.pi(torch.FloatTensor(state).to(device))
-            action = torch.distributions.Categorical(prob_a).sample().item()
-            new_state, reward, terminal, _ = agent.env.step(action)
+            #prob_a = agent.policy_network.pi(torch.FloatTensor(state).to(device))
+            #action = torch.distributions.Categorical(prob_a).sample().item()
+            action, _ = agent.predict(state)
+            new_state, reward, terminal, info, _ = env.step(action)
             ep_reward += reward
 
             ep_memory['state'].append(state)
@@ -43,7 +55,7 @@ def collect(args):
                     print("trajectory reward: {}, collected {} trajectories".format(ep_reward, trajectories))
                 break
 
-    agent.env.close()
+    #agent.env.close()
     avg_rew = sum(rewards) / len(rewards)
     print('avg rew: %.2f' % avg_rew)
     print('trajectories:', trajectories)
