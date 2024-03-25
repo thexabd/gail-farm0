@@ -51,7 +51,7 @@ def train(args, agent, env):
         # If end episode
         if terminal:
             # Store metrics
-            writer.add_scalar("Reward", episode_return, episodes)
+            writer.add_scalar("Reward", episode_return, step)
             print('episode: {}, total step: {}, last_episode_reward: {}'.format(episodes+1, step+1, episode_return))
 
             # Reset the environment

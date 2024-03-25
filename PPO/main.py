@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--min_reward', type=int, default=195,
                         help='Collect a trajectory only if its cumulative reward is >= this threshold')
-    parser.add_argument('--n_traj', type=int, default=100,
+    parser.add_argument('--n_traj', type=int, default=500,
                         help='Number of trajectories to store')
     parser.add_argument('--traj_path', type=str, default='PPO/trajectories/cart_pole.pickle',
                         help='Path where to store collected trajectories')

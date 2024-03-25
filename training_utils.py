@@ -4,7 +4,12 @@ from torch.nn import functional as F
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader, Dataset
 import numpy as np
+from torch.utils.tensorboard import SummaryWriter
 
+writer = SummaryWriter()
+
+target_update = 0
+adv_update = 0
 
 # Flattens a list of dicts with torch Tensors
 def flatten_list_dicts(list_dicts):
@@ -81,7 +86,7 @@ def ppo_update(agent, trajectories, agent_optimiser, ppo_clip, epoch, value_loss
 
     policy_ratio = (trajectories['log_prob_actions'] - trajectories['old_log_prob_actions']).exp()
     policy_loss = -torch.min(policy_ratio * trajectories['advantages'], torch.clamp(policy_ratio, min=1 - ppo_clip, max=1 + ppo_clip) * trajectories['advantages']).mean()  # Update the policy by maximising the clipped PPO objective
-    value_loss = F.mse_loss(trajectories['values'], trajectories['rewards_to_go'])  # Fit value function by regression on mean squared error
+    value_loss = F.mse_loss(trajectories['values'].squeeze(), trajectories['rewards_to_go'])  # Fit value function by regression on mean squared error
     entropy_reg = -trajectories['entropies'].mean()  # Add entropy regularisation
 
     agent_optimiser.zero_grad()
@@ -101,6 +106,7 @@ def target_estimation_update(discriminator, expert_trajectories, discriminator_o
         discriminator_optimiser.zero_grad(set_to_none=True)
         prediction, target = discriminator(expert_state, expert_action)
         regression_loss = F.mse_loss(prediction, target)
+        writer.add_scalar("Regression Loss", regression_loss, target_update)
         regression_loss.backward()
         discriminator_optimiser.step()
 
@@ -124,10 +130,13 @@ def adversarial_imitation_update(discriminator, expert_trajectories, policy_traj
         # Binary logistic regression
         discriminator_optimiser.zero_grad()
         expert_loss = F.binary_cross_entropy(d_expert, torch.ones_like(d_expert))  # Loss on "real" (expert) data
+        writer.add_scalar("Adversarial Expert Loss", expert_loss, adv_update)
         autograd.backward(expert_loss, create_graph=True)
         r1_reg = 0
         for param in discriminator.parameters():
             r1_reg += param.grad.norm()  # R1 gradient penalty
         policy_loss = F.binary_cross_entropy(d_policy, torch.zeros_like(d_policy))  # Loss on "fake" (policy) data
+        writer.add_scalar("Adversarial Policy Loss", policy_loss, adv_update)
+        update += 1
         (policy_loss + r1_reg_coeff * r1_reg).backward()
         discriminator_optimiser.step()
