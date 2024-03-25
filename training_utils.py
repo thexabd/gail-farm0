@@ -107,12 +107,13 @@ def target_estimation_update(discriminator, expert_trajectories, discriminator_o
         prediction, target = discriminator(expert_state, expert_action)
         regression_loss = F.mse_loss(prediction, target)
         writer.add_scalar("Regression Loss", regression_loss, target_update)
+        target_update += 1
         regression_loss.backward()
         discriminator_optimiser.step()
 
 
 # Performs an adversarial imitation learning update
-def adversarial_imitation_update(discriminator, expert_trajectories, policy_trajectories, discriminator_optimiser, batch_size, absorbing=False, r1_reg_coeff=1, pos_class_prior=1, nonnegative_margin=0):
+def adversarial_imitation_update(discriminator, expert_trajectories, policy_trajectories, discriminator_optimiser, batch_size, step, absorbing=False, r1_reg_coeff=1, pos_class_prior=1, nonnegative_margin=0):
     expert_dataloader = DataLoader(expert_trajectories, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=8)
     policy_dataloader = DataLoader(policy_trajectories, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=8)
 
@@ -130,13 +131,13 @@ def adversarial_imitation_update(discriminator, expert_trajectories, policy_traj
         # Binary logistic regression
         discriminator_optimiser.zero_grad()
         expert_loss = F.binary_cross_entropy(d_expert, torch.ones_like(d_expert))  # Loss on "real" (expert) data
-        writer.add_scalar("Adversarial Expert Loss", expert_loss, adv_update)
+        writer.add_scalar("Adversarial Expert Loss", expert_loss, step)
         autograd.backward(expert_loss, create_graph=True)
         r1_reg = 0
         for param in discriminator.parameters():
             r1_reg += param.grad.norm()  # R1 gradient penalty
         policy_loss = F.binary_cross_entropy(d_policy, torch.zeros_like(d_policy))  # Loss on "fake" (policy) data
-        writer.add_scalar("Adversarial Policy Loss", policy_loss, adv_update)
-        update += 1
+        writer.add_scalar("Adversarial Policy Loss", policy_loss, step)
+        adv_update += 1
         (policy_loss + r1_reg_coeff * r1_reg).backward()
         discriminator_optimiser.step()
