@@ -29,10 +29,12 @@ def train(args, agent, env):
 
     # Init
     state = env.reset()
+    episode_len = 0
     episode_return = 0
     episodes = 0
     trajectories = []
     policy_trajectory_replay_buffer = deque(maxlen=args.imitation_replay_size)
+    expert_loss_sum, policy_loss_sum = 0, 0
 
     # Start training
     for step in range(args.steps):
@@ -47,15 +49,18 @@ def train(args, agent, env):
                                  log_prob_actions=log_prob_action, old_log_prob_actions=log_prob_action.detach(),
                                  values=value, entropies=entropy))
         state = next_state
+        episode_len += 1
 
         # If end episode
         if terminal:
             # Store metrics
             writer.add_scalar("Reward", episode_return, step)
+            writer.add_scalar("Episode Length", episode_len, step)
             print('episode: {}, total step: {}, last_episode_reward: {}'.format(episodes+1, step+1, episode_return))
 
             # Reset the environment
             state, episode_return = env.reset(), 0
+            episode_len = 0
 
             if len(trajectories) >= args.batch_size:
                 policy_trajectories = flatten_list_dicts(trajectories)
@@ -64,12 +69,19 @@ def train(args, agent, env):
                 # Use a replay buffer of previous trajectories to prevent overfitting to current policy
                 policy_trajectory_replay_buffer.append(policy_trajectories)
                 policy_trajectory_replays = flatten_list_dicts(policy_trajectory_replay_buffer)
+
                 # Train discriminator and predict rewards
                 for _ in tqdm(range(args.imitation_epochs), leave=False):
-                    adversarial_imitation_update(discriminator, expert_trajectories,
+                    expert_loss, policy_loss = adversarial_imitation_update(discriminator, expert_trajectories,
                                                  TransitionDataset(policy_trajectory_replays),
                                                  discriminator_optimiser, args.imitation_batch_size,
                                                  args.absorbing, args.r1_reg_coeff)
+                    expert_loss_sum += expert_loss.item()
+                    policy_loss_sum += policy_loss.item()
+                
+                writer.add_scalar("Average Expert Loss", (expert_loss_sum)/(args.imitation_episodes), step)
+                writer.add_scalar("Average Policy Loss", (policy_loss_sum)/(args.imitation_episodes), step)
+                
                 states = policy_trajectories['states']
                 actions = policy_trajectories['actions']
                 next_states = torch.cat([policy_trajectories['states'][1:], next_state])

@@ -117,8 +117,13 @@ def adversarial_imitation_update(discriminator, expert_trajectories, policy_traj
     expert_dataloader = DataLoader(expert_trajectories, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=8)
     policy_dataloader = DataLoader(policy_trajectories, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=8)
 
+    total_expert_loss = 0
+    total_policy_loss = 0
+    num_batches = 0
+
     # Iterate over expert and policy data
     for expert_transition, policy_transition in zip(expert_dataloader, policy_dataloader):
+        num_batches += 1
         expert_state, expert_action, expert_next_state, expert_terminal = expert_transition['states'], expert_transition['actions'], expert_transition['next_states'], expert_transition['terminals']
         policy_state, policy_action, policy_next_state, policy_terminal = policy_transition['states'], policy_transition['actions'], policy_transition['next_states'], policy_transition['terminals']
 
@@ -131,13 +136,18 @@ def adversarial_imitation_update(discriminator, expert_trajectories, policy_traj
         # Binary logistic regression
         discriminator_optimiser.zero_grad()
         expert_loss = F.binary_cross_entropy(d_expert, torch.ones_like(d_expert))  # Loss on "real" (expert) data
-        #writer.add_scalar("Adversarial Expert Loss", expert_loss, step)
         autograd.backward(expert_loss, create_graph=True)
         r1_reg = 0
         for param in discriminator.parameters():
             r1_reg += param.grad.norm()  # R1 gradient penalty
         policy_loss = F.binary_cross_entropy(d_policy, torch.zeros_like(d_policy))  # Loss on "fake" (policy) data
-        #writer.add_scalar("Adversarial Policy Loss", policy_loss, step)
-        #adv_update += 1
         (policy_loss + r1_reg_coeff * r1_reg).backward()
         discriminator_optimiser.step()
+        
+        total_expert_loss += expert_loss
+        total_policy_loss += policy_loss
+
+    total_expert_loss /= num_batches
+    total_policy_loss /= num_batches
+
+    return total_expert_loss, total_policy_loss
